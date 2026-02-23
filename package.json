@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "scripts": {
+    "update": "tsx update-stations.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

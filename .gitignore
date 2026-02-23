@@ -1,0 +1,8 @@
+# Local Netlify folder
+.netlify
+
+node_modules/
+
+# Generated data files (run `npm run update` to regenerate)
+data/stations.json
+data/stations.geojson
