@@ -4,7 +4,8 @@
     "dev": "vite",
     "build": "vite build && cp -r data dist/",
     "preview": "vite preview",
-    "update": "bun run update-stations.ts"
+    "update": "bun run update-stations.ts",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@turf/turf": "^7.3.4",
@@ -12,6 +13,7 @@
   },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "prettier": "^3.8.1",
     "vite": "^7.3.1"
   }
 }

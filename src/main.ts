@@ -147,6 +147,9 @@ function setStationsData(data: FeatureCollection<Point>) {
     map.on("mouseleave", "stations-circle", () => {
       map.getCanvas().style.cursor = "";
     });
+
+    zoomToStations();
+    loadTowns();
   }
 
   updateStationsColor();
@@ -154,52 +157,78 @@ function setStationsData(data: FeatureCollection<Point>) {
   updateStats();
 }
 
+function zoomToStations() {
+  if (!stationsData || stationsData.features.length === 0) return;
+  const [minLng, minLat, maxLng, maxLat] = turf.bbox(stationsData);
+  map.fitBounds(
+    [
+      [minLng, minLat],
+      [maxLng, maxLat],
+    ],
+    { padding: 40, duration: 1500 },
+  );
+}
+
 /* ------------------ TOWNS ------------------ */
 
-fetch("data/towns.geojson")
-  .then((res) => res.json())
-  .then((data) => {
-    townsData = data;
-    map.addSource("towns", { type: "geojson", data });
-    map.addLayer({
+async function loadTowns() {
+  const res = await fetch("data/towns.geojson");
+  const data = await res.json();
+  townsData = data;
+  map.addSource("towns", { type: "geojson", data });
+  map.addLayer(
+    {
       id: "towns-fill",
       type: "fill",
       source: "towns",
       paint: { "fill-color": "#0080ff", "fill-opacity": 0.3 },
-    });
-    map.addLayer({
+    },
+    "stations-circle",
+  );
+  map.addLayer(
+    {
       id: "towns-selected-fill",
       type: "fill",
       source: "towns",
       paint: { "fill-color": "#0040cc", "fill-opacity": 0.6 },
       filter: ["==", "TOWN_ID", -1],
-    });
-    map.addLayer({
+    },
+    "stations-circle",
+  );
+  map.addLayer(
+    {
       id: "towns-outline",
       type: "line",
       source: "towns",
       paint: { "line-color": "#000", "line-width": 1 },
-    });
-    map.addLayer({
+    },
+    "stations-circle",
+  );
+  map.addLayer(
+    {
       id: "towns-highlight",
       type: "line",
       source: "towns",
       paint: { "line-color": "red", "line-width": 3 },
       filter: ["==", "TOWN_ID", -1],
-    });
+    },
+    "stations-circle",
+  );
 
-    map.on("click", "towns-fill", (e) => {
-      const townId = e.features![0].properties!.TOWN_ID;
-      const alreadySelected = townId === selectedTownId;
-      selectTown(alreadySelected ? null : townId);
-    });
-    map.on("mouseenter", "towns-fill", () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", "towns-fill", () => {
-      map.getCanvas().style.cursor = "";
-    });
+  map.on("click", "towns-fill", (e) => {
+    const townId = e.features![0].properties!.TOWN_ID;
+    const alreadySelected = townId === selectedTownId;
+    selectTown(alreadySelected ? null : townId);
   });
+  map.on("mouseenter", "towns-fill", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", "towns-fill", () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  rebuildTownDropdown();
+}
 
 function rebuildTownDropdown() {
   if (!townsData || !stationsData) return;
