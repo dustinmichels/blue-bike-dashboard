@@ -2,6 +2,7 @@
 .netlify
 
 node_modules/
+dist/
 
 # Generated data files (run `npm run update` to regenerate)
 data/stations.json

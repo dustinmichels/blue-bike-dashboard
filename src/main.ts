@@ -1,0 +1,333 @@
+import "maplibre-gl/dist/maplibre-gl.css";
+import maplibregl from "maplibre-gl";
+import type { GeoJSONSource } from "maplibre-gl";
+import * as turf from "@turf/turf";
+import type { FeatureCollection, Point, Polygon, MultiPolygon } from "geojson";
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    sources: {
+      osm: {
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      },
+    },
+    layers: [{ id: "osm", type: "raster", source: "osm" }],
+  },
+  center: [-71.5, 42.3],
+  zoom: 8,
+});
+
+let stationsData: FeatureCollection<Point> | null = null;
+let townsData: FeatureCollection<Polygon | MultiPolygon> | null = null;
+let selectedTownId: number | null = null;
+
+const statsDiv = document.getElementById("stats") as HTMLDivElement;
+const townSelect = document.getElementById("townSelect") as HTMLSelectElement;
+const loadingDiv = document.getElementById("loading") as HTMLDivElement;
+
+/* ------------------ DATA LOADING ------------------ */
+
+async function loadInitialStations() {
+  const res = await fetch("data/stations.geojson");
+  const data = await res.json();
+  setStationsData(data);
+}
+
+async function fetchStationsFromAPI() {
+  loadingDiv.style.display = "block";
+  try {
+    const url = "/.netlify/functions/get-bikes";
+    const query = `
+            query GetSystemSupply($input: SupplyInput) {
+              supply(input: $input) {
+                stations {
+                  stationId
+                  stationName
+                  valetName
+                  location { lat lng }
+                  bikesAvailable
+                  bikeDocksAvailable
+                  ebikesAvailable
+                  scootersAvailable
+                  totalBikesAvailable
+                  totalRideablesAvailable
+                  isValet
+                  isOffline
+                  isLightweight
+                  siteId
+                  lastUpdatedMs
+                }
+              }
+            }
+          `;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        operationName: "GetSystemSupply",
+        variables: {
+          input: { regionCode: "BOS", rideablePageLimit: 1000 },
+        },
+        query,
+      }),
+    });
+    const result = await response.json();
+
+    const stations = result.data.supply.stations;
+
+    const geojson: FeatureCollection<Point> = {
+      type: "FeatureCollection",
+      features: stations.map((s: any) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [s.location.lng, s.location.lat],
+        },
+        properties: {
+          stationId: s.stationId,
+          stationName: s.stationName,
+          bikesAvailable: s.bikesAvailable,
+          ebikesAvailable: s.ebikesAvailable,
+          bikeDocksAvailable: s.bikeDocksAvailable,
+        },
+      })),
+    };
+
+    setStationsData(geojson);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to fetch API data");
+  } finally {
+    loadingDiv.style.display = "none";
+  }
+}
+
+function setStationsData(data: FeatureCollection<Point>) {
+  stationsData = data;
+
+  if (map.getSource("stations")) {
+    (map.getSource("stations") as GeoJSONSource).setData(stationsData);
+  } else {
+    map.addSource("stations", { type: "geojson", data });
+    map.addLayer({
+      id: "stations-circle",
+      type: "circle",
+      source: "stations",
+      paint: {
+        "circle-radius": 6,
+        "circle-color": "green",
+        "circle-stroke-color": "#000",
+        "circle-stroke-width": 1,
+      },
+    });
+
+    map.on("click", "stations-circle", (e) => {
+      const f = e.features![0];
+      const p = f.properties;
+      new maplibregl.Popup()
+        .setLngLat((f.geometry as Point).coordinates as [number, number])
+        .setHTML(
+          `<strong>${p.stationName}</strong><br>
+                 Bikes: ${p.bikesAvailable}<br>
+                 E-bikes: ${p.ebikesAvailable}<br>
+                 Docks: ${p.bikeDocksAvailable}`,
+        )
+        .addTo(map);
+    });
+
+    map.on("mouseenter", "stations-circle", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "stations-circle", () => {
+      map.getCanvas().style.cursor = "";
+    });
+  }
+
+  updateStationsColor();
+  rebuildTownDropdown();
+  updateStats();
+}
+
+/* ------------------ TOWNS ------------------ */
+
+fetch("data/towns.geojson")
+  .then((res) => res.json())
+  .then((data) => {
+    townsData = data;
+    map.addSource("towns", { type: "geojson", data });
+    map.addLayer({
+      id: "towns-fill",
+      type: "fill",
+      source: "towns",
+      paint: { "fill-color": "#0080ff", "fill-opacity": 0.3 },
+    });
+    map.addLayer({
+      id: "towns-selected-fill",
+      type: "fill",
+      source: "towns",
+      paint: { "fill-color": "#0040cc", "fill-opacity": 0.6 },
+      filter: ["==", "TOWN_ID", -1],
+    });
+    map.addLayer({
+      id: "towns-outline",
+      type: "line",
+      source: "towns",
+      paint: { "line-color": "#000", "line-width": 1 },
+    });
+    map.addLayer({
+      id: "towns-highlight",
+      type: "line",
+      source: "towns",
+      paint: { "line-color": "red", "line-width": 3 },
+      filter: ["==", "TOWN_ID", -1],
+    });
+
+    map.on("click", "towns-fill", (e) => {
+      const townId = e.features![0].properties!.TOWN_ID;
+      const alreadySelected = townId === selectedTownId;
+      selectTown(alreadySelected ? null : townId);
+    });
+    map.on("mouseenter", "towns-fill", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "towns-fill", () => {
+      map.getCanvas().style.cursor = "";
+    });
+  });
+
+function rebuildTownDropdown() {
+  if (!townsData || !stationsData) return;
+
+  townSelect.innerHTML = '<option value="">Select a town</option>';
+
+  const townsWithStations = townsData.features.filter((town) =>
+    stationsData!.features.some((st) =>
+      turf.booleanPointInPolygon(st.geometry, town.geometry),
+    ),
+  );
+
+  if (map.getSource("towns")) {
+    (map.getSource("towns") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: townsWithStations,
+    });
+  }
+
+  townsWithStations.forEach((f) => {
+    const option = document.createElement("option");
+    option.value = f.properties!.TOWN_ID;
+    option.textContent = f.properties!.TOWN;
+    townSelect.appendChild(option);
+  });
+}
+
+function selectTown(id: number | null) {
+  selectedTownId = id;
+  const filter = id ? ["==", "TOWN_ID", id] : ["==", "TOWN_ID", -1];
+  map.setFilter("towns-highlight", filter as any);
+  map.setFilter("towns-selected-fill", filter as any);
+  townSelect.value = id !== null ? String(id) : "";
+  updateStats();
+}
+
+/* ------------------ STYLING & STATS ------------------ */
+
+document
+  .querySelectorAll('input[name="availability"]')
+  .forEach((r) => r.addEventListener("change", updateStationsColor));
+
+function updateStationsColor() {
+  if (!map.getLayer("stations-circle")) return;
+
+  const mode = (
+    document.querySelector(
+      'input[name="availability"]:checked',
+    ) as HTMLInputElement
+  ).value;
+
+  map.setPaintProperty(
+    "stations-circle",
+    "circle-color",
+    mode === "bikes"
+      ? [
+          "case",
+          ["==", ["get", "bikesAvailable"], 0],
+          "red",
+          ["==", ["get", "bikesAvailable"], 1],
+          "yellow",
+          "green",
+        ]
+      : [
+          "case",
+          ["==", ["get", "bikeDocksAvailable"], 0],
+          "red",
+          ["==", ["get", "bikeDocksAvailable"], 1],
+          "yellow",
+          "green",
+        ],
+  );
+}
+
+function updateStats() {
+  if (!stationsData) return;
+
+  let filtered = stationsData.features;
+  let townName: string | null = null;
+
+  if (selectedTownId && townsData) {
+    const townFeature = townsData.features.find(
+      (f) => f.properties!.TOWN_ID == selectedTownId,
+    );
+    if (townFeature) {
+      townName = townFeature.properties!.TOWN;
+      filtered = stationsData.features.filter((s) =>
+        turf.booleanPointInPolygon(s.geometry, townFeature.geometry),
+      );
+    }
+  }
+
+  const title = townName
+    ? `Stats for ${townName} | All Stations`
+    : "Stats for All Stations";
+
+  const num = filtered.length;
+  const bikes = filtered.reduce(
+    (sum, s) => sum + Number(s.properties!.bikesAvailable),
+    0,
+  );
+  const ebikes = filtered.reduce(
+    (sum, s) => sum + Number(s.properties!.ebikesAvailable),
+    0,
+  );
+  const docks = filtered.reduce(
+    (sum, s) => sum + Number(s.properties!.bikeDocksAvailable),
+    0,
+  );
+
+  statsDiv.innerHTML = `<strong>${title}</strong><br>
+          Number of stations: ${num}<br>
+          Bikes available: ${bikes}<br>
+          E-bikes available: ${ebikes}<br>
+          Docks available: ${docks}`;
+}
+
+townSelect.addEventListener("change", (e) => {
+  const val = (e.target as HTMLSelectElement).value;
+  selectTown(val ? parseInt(val) : null);
+});
+
+document
+  .getElementById("refreshBtn")!
+  .addEventListener("click", fetchStationsFromAPI);
+
+/* ------------------ INITIAL LOAD ------------------ */
+
+map.on("load", () => {
+  loadInitialStations();
+});
