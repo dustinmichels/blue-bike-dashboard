@@ -23,6 +23,9 @@ const statEbikes = document.getElementById('stat-ebikes') as HTMLSpanElement
 const statDocks = document.getElementById('stat-docks') as HTMLSpanElement
 const townSelect = document.getElementById('townSelect') as HTMLSelectElement
 const loadingDiv = document.getElementById('loading') as HTMLDivElement
+const deselectTownBtn = document.getElementById(
+  'deselectTownBtn'
+) as HTMLButtonElement
 
 /* ------------------ DATA LOADING ------------------ */
 
@@ -219,8 +222,7 @@ async function loadTowns() {
 
   map.on('click', 'towns-fill', (e) => {
     const townId = e.features![0].properties!.TOWN_ID
-    const alreadySelected = townId === selectedTownId
-    selectTown(alreadySelected ? null : townId)
+    selectTown(townId)
   })
   map.on('mouseenter', 'towns-fill', () => {
     map.getCanvas().style.cursor = 'pointer'
@@ -264,6 +266,13 @@ function selectTown(id: number | null) {
   map.setFilter('towns-highlight', filter as any)
   map.setFilter('towns-selected-fill', filter as any)
   townSelect.value = id !== null ? String(id) : ''
+
+  if (id !== null) {
+    deselectTownBtn.classList.remove('hidden')
+  } else {
+    deselectTownBtn.classList.add('hidden')
+  }
+
   updateStats()
 }
 
@@ -324,8 +333,15 @@ function updateStats() {
     }
   }
 
-  const title = townName
-    ? `Stats for ${townName} | All Stations`
+  const formattedTownName = townName
+    ? townName
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ')
+    : null
+
+  const title = formattedTownName
+    ? `Stats for ${formattedTownName}`
     : 'Stats for All Stations'
 
   const num = filtered.length
@@ -352,6 +368,10 @@ function updateStats() {
 townSelect.addEventListener('change', (e) => {
   const val = (e.target as HTMLSelectElement).value
   selectTown(val ? parseInt(val) : null)
+})
+
+deselectTownBtn.addEventListener('click', () => {
+  selectTown(null)
 })
 
 document
