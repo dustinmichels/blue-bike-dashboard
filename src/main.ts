@@ -92,6 +92,7 @@ async function fetchStationsFromAPI() {
           bikesAvailable: s.bikesAvailable,
           ebikesAvailable: s.ebikesAvailable,
           bikeDocksAvailable: s.bikeDocksAvailable,
+          isOffline: s.isOffline,
         },
       })),
     }
@@ -117,6 +118,7 @@ function setStationsData(data: FeatureCollection<Point>) {
       id: 'stations-circle',
       type: 'circle',
       source: 'stations',
+      filter: ['!=', ['get', 'isOffline'], true],
       paint: {
         'circle-radius': 6,
         'circle-color': '#22c55e',
@@ -125,31 +127,61 @@ function setStationsData(data: FeatureCollection<Point>) {
       },
     })
 
-    map.on('click', 'stations-circle', (e) => {
+    map.addLayer({
+      id: 'stations-offline',
+      type: 'symbol',
+      source: 'stations',
+      filter: ['==', ['get', 'isOffline'], true],
+      layout: {
+        'text-field': '✖',
+        'text-size': 14,
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': '#64748b',
+      },
+    })
+
+    const handleStationClick = (e: any) => {
       const f = e.features![0]
       const p = f.properties
+
+      const body = p.isOffline
+        ? `<div class="text-slate-500 font-medium italic mt-1">Station offline</div>`
+        : `<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mt-1">
+             <div class="text-slate-500 font-medium">Bikes</div>
+             <div class="font-semibold text-blue-600 text-right">${p.bikesAvailable}</div>
+             <div class="text-slate-500 font-medium">E-Bikes</div>
+             <div class="font-semibold text-indigo-600 text-right">${p.ebikesAvailable}</div>
+             <div class="text-slate-500 font-medium border-t border-slate-100 pt-1 mt-1">Docks</div>
+             <div class="font-semibold text-slate-700 text-right border-t border-slate-100 pt-1 mt-1">${p.bikeDocksAvailable}</div>
+           </div>`
+
       new maplibregl.Popup()
         .setLngLat((f.geometry as Point).coordinates as [number, number])
         .setHTML(
           `<div class="p-2 font-sans">
-             <h3 class="font-bold text-slate-800 text-base mb-2 border-b border-slate-200 pb-1">${p.stationName}</h3>
-             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-               <div class="text-slate-500 font-medium">Bikes</div>
-               <div class="font-semibold text-blue-600 text-right">${p.bikesAvailable}</div>
-               <div class="text-slate-500 font-medium">E-Bikes</div>
-               <div class="font-semibold text-indigo-600 text-right">${p.ebikesAvailable}</div>
-               <div class="text-slate-500 font-medium border-t border-slate-100 pt-1 mt-1">Docks</div>
-               <div class="font-semibold text-slate-700 text-right border-t border-slate-100 pt-1 mt-1">${p.bikeDocksAvailable}</div>
-             </div>
+             <h3 class="font-bold text-slate-800 text-base border-b border-slate-200 pb-1">${p.stationName}</h3>
+             ${body}
            </div>`
         )
         .addTo(map)
-    })
+    }
+
+    map.on('click', 'stations-circle', handleStationClick)
+    map.on('click', 'stations-offline', handleStationClick)
 
     map.on('mouseenter', 'stations-circle', () => {
       map.getCanvas().style.cursor = 'pointer'
     })
     map.on('mouseleave', 'stations-circle', () => {
+      map.getCanvas().style.cursor = ''
+    })
+    map.on('mouseenter', 'stations-offline', () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', 'stations-offline', () => {
       map.getCanvas().style.cursor = ''
     })
 
