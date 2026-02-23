@@ -9,11 +9,15 @@
   },
   "dependencies": {
     "@turf/turf": "^7.3.4",
+    "lucide": "^0.575.0",
     "maplibre-gl": "^5.18.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@tailwindcss/vite": "^4.2.0",
     "prettier": "^3.8.1",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "tailwindcss": "^4.2.0",
+    "typescript": "^5.9.3",
     "vite": "^7.3.1"
   }
 }

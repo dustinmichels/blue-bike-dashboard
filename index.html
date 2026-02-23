@@ -3,105 +3,268 @@
   <head>
     <meta charset="UTF-8" />
     <title>MA Towns Map</title>
-    <style>
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-      }
-      #map {
-        width: 100%;
-        height: 100%;
-      }
-      #townSelect,
-      #toggleContainer,
-      #stats,
-      .legend,
-      #refreshContainer {
-        position: absolute;
-        z-index: 2;
-        background: white;
-        padding: 5px;
-        font-family: sans-serif;
-      }
-      #townSelect {
-        top: 10px;
-        left: 10px;
-      }
-      #toggleContainer {
-        top: 50px;
-        left: 10px;
-      }
-      #refreshContainer {
-        top: 110px;
-        left: 10px;
-      }
-      #stats {
-        top: 170px;
-        left: 10px;
-        font-size: 14px;
-      }
-      .legend {
-        bottom: 30px;
-        left: 10px;
-        font-size: 12px;
-      }
-      .legend div {
-        display: flex;
-        align-items: center;
-        margin-bottom: 2px;
-      }
-      .legend span {
-        width: 12px;
-        height: 12px;
-        display: inline-block;
-        margin-right: 5px;
-      }
-      #loading {
-        display: none;
-        font-size: 12px;
-        color: blue;
-        margin-top: 5px;
-      }
-    </style>
   </head>
-  <body>
-    <select id="townSelect">
-      <option value="">Select a town</option>
-    </select>
+  <body
+    class="m-0 p-0 h-screen w-screen overflow-hidden text-slate-800 bg-slate-50 font-sans"
+  >
+    <div class="flex h-full w-full">
+      <!-- Left Side Panel (Data Pane) -->
+      <aside
+        class="w-80 md:w-96 flex flex-col bg-white shadow-2xl z-10 border-r border-slate-200 shrink-0"
+      >
+        <!-- Header -->
+        <div
+          class="p-6 bg-blue-600 bg-gradient-to-r from-blue-700 to-blue-500 text-white shadow-md"
+        >
+          <h1 class="text-2xl font-extrabold tracking-tight">
+            Blue Bikes in Boston
+          </h1>
+          <p class="text-blue-100 text-sm mt-1 font-medium">
+            Real-time availability dashboard
+          </p>
+        </div>
 
-    <div id="toggleContainer">
-      <label>
-        <input type="radio" name="availability" value="bikes" checked />
-        Bikes available </label
-      ><br />
-      <label>
-        <input type="radio" name="availability" value="docks" />
-        Docks available
-      </label>
+        <!-- Scrollable Content -->
+        <div class="p-6 flex-1 overflow-y-auto space-y-8">
+          <!-- Town Select -->
+          <div>
+            <label
+              for="townSelect"
+              class="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide"
+              >Select Area</label
+            >
+            <div class="relative">
+              <select
+                id="townSelect"
+                class="block w-full rounded-lg border-0 py-3 pl-4 pr-10 text-slate-800 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-blue-500 sm:text-sm sm:leading-6 bg-white appearance-none shadow-sm cursor-pointer hover:bg-slate-50 transition-all font-medium"
+              >
+                <option value="">Select a town</option>
+              </select>
+              <div
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggle Container -->
+          <div
+            id="toggleContainer"
+            class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm"
+          >
+            <h2
+              class="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide"
+            >
+              View Availability
+            </h2>
+            <div class="space-y-3">
+              <label class="flex items-center cursor-pointer group">
+                <input
+                  type="radio"
+                  name="availability"
+                  value="bikes"
+                  class="h-5 w-5 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer transition-shadow"
+                  checked
+                />
+                <span
+                  class="ml-3 text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors"
+                  >Bikes available</span
+                >
+              </label>
+              <label class="flex items-center cursor-pointer group">
+                <input
+                  type="radio"
+                  name="availability"
+                  value="docks"
+                  class="h-5 w-5 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer transition-shadow"
+                />
+                <span
+                  class="ml-3 text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors"
+                  >Docks available</span
+                >
+              </label>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div
+            id="statsContainer"
+            class="bg-white border rounded-xl overflow-hidden border-slate-200 shadow-md"
+          >
+            <div class="bg-slate-800 px-5 py-3 border-b border-slate-700">
+              <h2
+                id="statsTitle"
+                class="text-sm font-bold text-white tracking-wide truncate"
+              >
+                Stats for All Stations
+              </h2>
+            </div>
+            <div class="p-5 grid grid-cols-2 gap-y-6 gap-x-4">
+              <div class="flex flex-col border-b border-slate-100 pb-2">
+                <span
+                  class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1"
+                  >Stations</span
+                >
+                <span
+                  id="stat-stations"
+                  class="text-3xl font-black text-slate-800 tabular-nums leading-none"
+                  >0</span
+                >
+              </div>
+              <div class="flex flex-col border-b border-slate-100 pb-2">
+                <span
+                  class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1"
+                  >Docks</span
+                >
+                <span
+                  id="stat-docks"
+                  class="text-3xl font-black text-slate-600 tabular-nums leading-none"
+                  >0</span
+                >
+              </div>
+              <div class="flex flex-col">
+                <span
+                  class="text-[10px] text-blue-500 uppercase tracking-widest font-bold mb-1"
+                  >Bikes</span
+                >
+                <span
+                  id="stat-bikes"
+                  class="text-3xl font-black text-blue-600 tabular-nums leading-none"
+                  >0</span
+                >
+              </div>
+              <div class="flex flex-col">
+                <span
+                  class="text-[10px] text-blue-500 uppercase tracking-widest font-bold mb-1"
+                  >E-Bikes</span
+                >
+                <span
+                  id="stat-ebikes"
+                  class="text-3xl font-black text-indigo-600 tabular-nums leading-none"
+                  >0</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div>
+            <h2
+              class="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide"
+            >
+              Legend
+            </h2>
+            <div
+              class="flex flex-col space-y-2 text-xs font-semibold text-slate-700"
+            >
+              <div
+                class="flex items-center bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm"
+              >
+                <span
+                  class="w-4 h-4 rounded-full mr-3 shadow-sm border border-white"
+                  style="background: #ef4444"
+                ></span>
+                0 Available
+              </div>
+              <div
+                class="flex items-center bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm"
+              >
+                <span
+                  class="w-4 h-4 rounded-full mr-3 shadow-sm border border-white"
+                  style="background: #eab308"
+                ></span>
+                1 Available
+              </div>
+              <div
+                class="flex items-center bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm"
+              >
+                <span
+                  class="w-4 h-4 rounded-full mr-3 shadow-sm border border-white"
+                  style="background: #22c55e"
+                ></span>
+                >1 Available
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Refresh Button Area -->
+        <div class="p-5 border-t border-slate-200 bg-slate-50">
+          <button
+            id="refreshBtn"
+            class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-200 transition-all flex justify-center items-center group"
+          >
+            <svg
+              class="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              ></path>
+            </svg>
+            Refresh Data
+          </button>
+          <div
+            id="loading"
+            class="hidden text-center text-xs text-blue-600 mt-4 font-bold tracking-wide uppercase flex items-center justify-center"
+          >
+            <svg
+              class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Loading real-time data...
+          </div>
+        </div>
+      </aside>
+
+      <!-- Map Area -->
+      <main class="flex-1 relative bg-slate-100">
+        <div id="map-loading" class="absolute inset-0 z-50 flex items-center justify-center bg-slate-100/80 backdrop-blur-sm transition-opacity duration-500">
+          <div class="flex flex-col items-center">
+            <svg class="animate-spin mb-4 h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-blue-600 font-bold tracking-widest uppercase text-sm">Loading Map...</span>
+          </div>
+        </div>
+        <div id="map" class="w-full h-full"></div>
+      </main>
     </div>
-
-    <div id="refreshContainer">
-      <button id="refreshBtn">Refresh data</button>
-      <div id="loading">Loading data...</div>
-    </div>
-
-    <div class="legend">
-      <div><span style="background: red"></span> 0</div>
-      <div><span style="background: yellow"></span> 1</div>
-      <div><span style="background: green"></span> >1</div>
-    </div>
-
-    <div id="stats">
-      <strong>Stats for All Stations</strong><br />
-      Number of stations: 0<br />
-      Bikes available: 0<br />
-      E-bikes available: 0<br />
-      Docks available: 0
-    </div>
-
-    <div id="map"></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
