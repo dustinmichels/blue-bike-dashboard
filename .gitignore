@@ -5,5 +5,5 @@ node_modules/
 dist/
 
 # Generated data files (run `npm run update` to regenerate)
-data/stations.json
-data/stations.geojson
+# data/stations.json
+# data/stations.geojson
