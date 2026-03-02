@@ -26,6 +26,8 @@ const loadingDiv = document.getElementById('loading') as HTMLDivElement
 const deselectTownBtn = document.getElementById(
   'deselectTownBtn'
 ) as HTMLButtonElement
+const lastRefreshedDiv = document.getElementById('lastRefreshed') as HTMLDivElement
+const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement
 
 /* ------------------ DATA LOADING ------------------ */
 
@@ -38,6 +40,8 @@ async function loadInitialStations() {
 async function fetchStationsFromAPI() {
   loadingDiv.classList.remove('hidden')
   loadingDiv.classList.add('flex')
+  refreshBtn.disabled = true
+  refreshBtn.classList.add('opacity-50', 'cursor-not-allowed')
   try {
     const url = '/.netlify/functions/get-bikes'
     const query = `
@@ -98,12 +102,24 @@ async function fetchStationsFromAPI() {
     }
 
     setStationsData(geojson)
+
+    const now = new Date()
+    const timeString = now.toLocaleString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric', 
+      hour: 'numeric', 
+      minute: '2-digit' 
+    }).replace(/,/g, '')
+    lastRefreshedDiv.textContent = `Last Refreshed: ${timeString}`
   } catch (err) {
     console.error(err)
     alert('Failed to fetch API data')
   } finally {
     loadingDiv.classList.add('hidden')
     loadingDiv.classList.remove('flex')
+    refreshBtn.disabled = false
+    refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed')
   }
 }
 
@@ -406,9 +422,7 @@ deselectTownBtn.addEventListener('click', () => {
   selectTown(null)
 })
 
-document
-  .getElementById('refreshBtn')!
-  .addEventListener('click', fetchStationsFromAPI)
+refreshBtn.addEventListener('click', fetchStationsFromAPI)
 
 /* ------------------ INITIAL LOAD ------------------ */
 
