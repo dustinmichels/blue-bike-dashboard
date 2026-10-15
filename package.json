@@ -4,20 +4,21 @@
     "dev": "vite",
     "build": "vite build && cp -r data dist/",
     "preview": "vite preview",
-    "update": "bun run update-stations.ts",
+    "refresh-stations": "bun run refresh-stations.ts",
+    "collect-stations": "bun run collect-stations.ts",
     "fmt": "oxfmt"
   },
   "dependencies": {
-    "@turf/turf": "^7.3.4",
+    "@turf/turf": "^7.4.0",
     "lucide": "^0.575.0",
-    "maplibre-gl": "^5.18.0"
+    "maplibre-gl": "^5.24.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.0",
-    "@types/node": "^25.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^25.9.9",
     "oxfmt": "^0.36.0",
-    "tailwindcss": "^4.2.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.7"
   }
 }
